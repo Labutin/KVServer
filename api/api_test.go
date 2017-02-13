@@ -3,7 +3,6 @@ package api
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"net/http"
@@ -43,7 +42,6 @@ func checkRequest(t *testing.T, testRequest testRequest, resp *http.Response, er
 	respBody, err := ioutil.ReadAll(resp.Body)
 	require.NoError(t, err)
 	var response Resp
-	fmt.Println(string(respBody))
 	err = json.Unmarshal(respBody, &response)
 	require.NoError(t, err)
 	require.Equal(t, testRequest.response.response, response)
@@ -71,11 +69,11 @@ func TestAddRecord(t *testing.T) {
 	postBodyt1["ttl"] = 0
 	postBodyt2 := map[string]interface{}{}
 	postBodyt2["key"] = "t2"
-	postBodyt2["value"] = 2
+	postBodyt2["value"] = float64(2)
 	postBodyt2["ttl"] = 0
 	postBodyt3 := map[string]interface{}{}
 	postBodyt3["key"] = "t3"
-	postBodyt3["value"] = []int{0, 1, 2, 3}
+	postBodyt3["value"] = []interface{}{float64(0), float64(1), float64(2), float64(3)}
 	postBodyt3["ttl"] = 0
 	requests := []testRequest{
 		{
@@ -96,7 +94,7 @@ func TestAddRecord(t *testing.T) {
 			response: testResponse{
 				responseCode: 200,
 				response: Resp{
-					Result: "v1",
+					Result: postBodyt1["value"],
 					Ok:     true,
 				},
 			},
@@ -119,7 +117,7 @@ func TestAddRecord(t *testing.T) {
 			response: testResponse{
 				responseCode: 200,
 				response: Resp{
-					Result: float64(2),
+					Result: postBodyt2["value"],
 					Ok:     true,
 				},
 			},
@@ -142,17 +140,22 @@ func TestAddRecord(t *testing.T) {
 			response: testResponse{
 				responseCode: 200,
 				response: Resp{
-					Result: []interface{}{float64(0), float64(1), float64(2), float64(3)},
-					Ok: true,
+					Result: postBodyt3["value"],
+					Ok:     true,
 				},
 			},
 		},
 	}
 	testRequests(t, requests)
-	value, ok := storage.Get("t1")
+	value, ok := storage.Get(postBodyt1["key"].(string))
 	require.True(t, ok)
-	require.Equal(t, "v1", value)
-
+	require.Equal(t, postBodyt1["value"], value)
+	value, ok = storage.Get(postBodyt2["key"].(string))
+	require.True(t, ok)
+	require.Equal(t, postBodyt2["value"], value)
+	value, ok = storage.Get(postBodyt3["key"].(string))
+	require.True(t, ok)
+	require.Equal(t, postBodyt3["value"], value)
 }
 
 func init() {
