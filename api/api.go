@@ -19,6 +19,7 @@ var (
 type Resp struct {
 	Result interface{} `json:"response"`
 	Ok     bool        `json:"ok"`
+	Error  string      `json:"error"`
 }
 
 func handlerPing(w http.ResponseWriter, _ *http.Request) {
@@ -34,7 +35,7 @@ func InitRouter() *chi.Mux {
 	r.Get("/v1/ping", handlerPing)
 	r.Route(urlPath, func(r chi.Router) {
 		r.Route("/get/:key", func(r chi.Router) {
-			r.Get("/", GetRecord)
+			r.Get("/", getRecord)
 		})
 		r.Route("/getdict/:key/:keydict", func(r chi.Router) {
 			r.Get("/", GetDictRecord)
@@ -69,11 +70,15 @@ func addRecord(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, Resp{Result: "", Ok: true})
 }
 
-func GetRecord(w http.ResponseWriter, r *http.Request) {
+func getRecord(w http.ResponseWriter, r *http.Request) {
 	key := chi.URLParam(r, "key")
-
-	value, _ := storage.Get(key)
-	res := Resp{Result: value, Ok: true}
+	var res Resp
+	if value, ok := storage.Get(key); !ok {
+		res.Ok = false
+		res.Error = KeyNotFound.String()
+	} else {
+		res = Resp{Result: value, Ok: true}
+	}
 	render.JSON(w, r, res)
 	return
 }

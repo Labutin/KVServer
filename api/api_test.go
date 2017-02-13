@@ -145,6 +145,18 @@ func TestAddRecord(t *testing.T) {
 				},
 			},
 		},
+		{
+			url:    server.URL + urlPath + "/get/absent",
+			method: "GET",
+			response: testResponse{
+				responseCode: 200,
+				response: Resp{
+					Result: nil,
+					Error:  KeyNotFound.String(),
+					Ok:     false,
+				},
+			},
+		},
 	}
 	testRequests(t, requests)
 	value, ok := storage.Get(postBodyt1["key"].(string))
