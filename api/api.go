@@ -17,9 +17,9 @@ var (
 )
 
 type Resp struct {
-	Result interface{} `json:"response"`
-	Ok     bool        `json:"ok"`
-	Error  string      `json:"error"`
+	Response interface{} `json:"response"`
+	Ok       bool        `json:"ok"`
+	Error    string      `json:"error"`
 }
 
 func handlerPing(w http.ResponseWriter, _ *http.Request) {
@@ -38,13 +38,13 @@ func InitRouter() *chi.Mux {
 			r.Get("/", getRecord)
 		})
 		r.Route("/getdict/:key/:keydict", func(r chi.Router) {
-			r.Get("/", GetDictRecord)
+			r.Get("/", getDictRecord)
 		})
 		r.Route("/getlist/:key/:index", func(r chi.Router) {
 			r.Get("/", GetListRecord)
 		})
 		r.Post("/", addRecord)
-		r.Post("/dict/", AddDict)
+		r.Post("/dict/", addDict)
 		r.Post("/list/", AddList)
 	})
 
@@ -62,32 +62,55 @@ func addRecord(w http.ResponseWriter, r *http.Request) {
 		TTL   int64       `json:"ttl"`
 	}
 	if err := render.Bind(r.Body, &data); err != nil {
-		render.JSON(w, r, Resp{Result: err.Error(), Ok: false})
+		render.JSON(w, r, Resp{Error: err.Error(), Ok: false})
 		return
 	}
 	ttl := time.Second * time.Duration(data.TTL)
 	storage.Set(data.Key, data.Value, ttl)
-	render.JSON(w, r, Resp{Result: "", Ok: true})
+	render.JSON(w, r, Resp{Response: "", Ok: true})
 }
 
 func getRecord(w http.ResponseWriter, r *http.Request) {
 	key := chi.URLParam(r, "key")
 	var res Resp
 	if value, ok := storage.Get(key); !ok {
+		render.Status(r, 404)
 		res.Ok = false
 		res.Error = KeyNotFound.String()
 	} else {
-		res = Resp{Result: value, Ok: true}
+		res = Resp{Response: value, Ok: true}
 	}
 	render.JSON(w, r, res)
 	return
 }
 
-func GetDictRecord(w http.ResponseWriter, r *http.Request) {
+func addDict(w http.ResponseWriter, r *http.Request) {
+	var data struct {
+		Key   string         `json:"key"`
+		Value kvstorage.Dict `json:"value"`
+		TTL   int64          `json:"ttl"`
+	}
+	if err := render.Bind(r.Body, &data); err != nil {
+		render.JSON(w, r, Resp{Error: err.Error(), Ok: false})
+		return
+	}
+	ttl := time.Second * time.Duration(data.TTL)
+	storage.Set(data.Key, data.Value, ttl)
+	render.JSON(w, r, Resp{Response: "", Ok: true})
+}
+
+func getDictRecord(w http.ResponseWriter, r *http.Request) {
 	key := chi.URLParam(r, "key")
 	dictKey := chi.URLParam(r, "keydict")
-	value, _ := storage.GetDictElement(key, dictKey)
-	render.JSON(w, r, value)
+	var res Resp
+	if value, err := storage.GetDictElement(key, dictKey); err != nil {
+		render.Status(r, 404)
+		res.Ok = false
+		res.Error = err.Error()
+	} else {
+		res = Resp{Response: value, Ok: true}
+	}
+	render.JSON(w, r, res)
 	return
 }
 
@@ -98,21 +121,6 @@ func GetListRecord(w http.ResponseWriter, r *http.Request) {
 	value, _ := storage.GetListElement(key, indexInt)
 	render.JSON(w, r, value)
 	return
-}
-
-func AddDict(w http.ResponseWriter, r *http.Request) {
-	var data struct {
-		Key   string         `json:"key"`
-		Value kvstorage.Dict `json:"value"`
-		TTL   int64          `json:"ttl"`
-	}
-	if err := render.Bind(r.Body, &data); err != nil {
-		render.JSON(w, r, err.Error())
-		return
-	}
-	ttl := time.Second * time.Duration(data.TTL)
-	storage.Set(data.Key, data.Value, ttl)
-	render.JSON(w, r, data)
 }
 
 func AddList(w http.ResponseWriter, r *http.Request) {

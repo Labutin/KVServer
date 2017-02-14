@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/Labutin/MemoryKeyValueStorage/kvstorage"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"net/http"
@@ -62,6 +63,59 @@ func testRequests(t *testing.T, requests []testRequest) {
 	}
 }
 
+func TestDict(t *testing.T) {
+	nestedMap := map[string]interface{}{
+		"t1": float64(1),
+		"t2": float64(2),
+	}
+	postBody := map[string]interface{}{}
+	postBody["key"] = "dict"
+	postBody["value"] = kvstorage.Dict{
+		"k1": float64(1),
+		"k2": nestedMap,
+	}
+	requests := []testRequest{
+		{
+			url:    server.URL + urlPath + "/dict/",
+			method: "POST",
+			body:   postBody,
+			response: testResponse{
+				responseCode: 200,
+				response: Resp{
+					Response: "",
+					Ok:       true,
+				},
+			},
+		},
+		{
+			url:    server.URL + urlPath + "/getdict/dict/k2",
+			method: "GET",
+			response: testResponse{
+				responseCode: 200,
+				response: Resp{
+					Response: nestedMap,
+					Ok:       true,
+				},
+			},
+		},
+		{
+			url:    server.URL + urlPath + "/getdict/dict/absent",
+			method: "GET",
+			response: testResponse{
+				responseCode: 404,
+				response: Resp{
+					Error: "Key in dictionary not found",
+					Ok:    false,
+				},
+			},
+		},
+	}
+	testRequests(t, requests)
+	value, ok := storage.Get("dict")
+	require.True(t, ok)
+	require.Equal(t, postBody["value"], value)
+}
+
 func TestAddRecord(t *testing.T) {
 	postBodyt1 := map[string]interface{}{}
 	postBodyt1["key"] = "t1"
@@ -83,8 +137,8 @@ func TestAddRecord(t *testing.T) {
 			response: testResponse{
 				responseCode: 200,
 				response: Resp{
-					Result: "",
-					Ok:     true,
+					Response: "",
+					Ok:       true,
 				},
 			},
 		},
@@ -94,8 +148,8 @@ func TestAddRecord(t *testing.T) {
 			response: testResponse{
 				responseCode: 200,
 				response: Resp{
-					Result: postBodyt1["value"],
-					Ok:     true,
+					Response: postBodyt1["value"],
+					Ok:       true,
 				},
 			},
 		},
@@ -106,8 +160,8 @@ func TestAddRecord(t *testing.T) {
 			response: testResponse{
 				responseCode: 200,
 				response: Resp{
-					Result: "",
-					Ok:     true,
+					Response: "",
+					Ok:       true,
 				},
 			},
 		},
@@ -117,8 +171,8 @@ func TestAddRecord(t *testing.T) {
 			response: testResponse{
 				responseCode: 200,
 				response: Resp{
-					Result: postBodyt2["value"],
-					Ok:     true,
+					Response: postBodyt2["value"],
+					Ok:       true,
 				},
 			},
 		},
@@ -129,8 +183,8 @@ func TestAddRecord(t *testing.T) {
 			response: testResponse{
 				responseCode: 200,
 				response: Resp{
-					Result: "",
-					Ok:     true,
+					Response: "",
+					Ok:       true,
 				},
 			},
 		},
@@ -140,8 +194,8 @@ func TestAddRecord(t *testing.T) {
 			response: testResponse{
 				responseCode: 200,
 				response: Resp{
-					Result: postBodyt3["value"],
-					Ok:     true,
+					Response: postBodyt3["value"],
+					Ok:       true,
 				},
 			},
 		},
@@ -149,11 +203,11 @@ func TestAddRecord(t *testing.T) {
 			url:    server.URL + urlPath + "/get/absent",
 			method: "GET",
 			response: testResponse{
-				responseCode: 200,
+				responseCode: 404,
 				response: Resp{
-					Result: nil,
-					Error:  KeyNotFound.String(),
-					Ok:     false,
+					Response: nil,
+					Error:    KeyNotFound.String(),
+					Ok:       false,
 				},
 			},
 		},
