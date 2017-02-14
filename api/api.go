@@ -2,18 +2,26 @@ package api
 
 import (
 	"fmt"
+	"github.com/Labutin/KVServer/logs"
 	"github.com/Labutin/MemoryKeyValueStorage/kvstorage"
 	"github.com/pressly/chi"
 	"github.com/pressly/chi/render"
+	"gopkg.in/mgo.v2"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
 )
 
 var (
-	storage *kvstorage.Storage
-	urlPath = "/v1/kvstorage"
+	storage             *kvstorage.Storage
+	urlPath             = "/v1/kvstorage"
+	mdbConnectionString string
+	mdbDbName           string
+	mdbCollection       string
 )
+
+const GOROUTINE_NAME = "main"
 
 type Resp struct {
 	Response interface{} `json:"response"`
@@ -52,6 +60,7 @@ func InitRouter() *chi.Mux {
 		r.Post("/dict/", addDict)
 		r.Post("/list/", addList)
 		r.Get("/keys", getAllKeys)
+		r.Get("/saveToDb", saveToDb)
 	})
 
 	return r
@@ -60,6 +69,13 @@ func InitRouter() *chi.Mux {
 // InitStorage creates Key/Value storage
 func InitStorage(chunks uint32) {
 	storage = kvstorage.NewKVStorage(chunks, true)
+}
+
+// InitPersistentStorage sets MongoDb params
+func InitPersistentStorage(connectionString, dbName, collection string) {
+	mdbConnectionString = connectionString
+	mdbDbName = dbName
+	mdbCollection = collection
 }
 
 // addRecord puts record to storage
@@ -76,6 +92,7 @@ func addRecord(w http.ResponseWriter, r *http.Request) {
 	}
 	ttl := time.Second * time.Duration(data.TTL)
 	storage.Set(data.Key, data.Value, ttl)
+	log.Println(logs.MakeLogString(logs.INFO, GOROUTINE_NAME, "Added record with key: "+data.Key, nil))
 	render.JSON(w, r, Resp{Response: "", Ok: true})
 }
 
@@ -91,6 +108,7 @@ func updateRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	storage.Update(data.Key, data.Value)
+	log.Println(logs.MakeLogString(logs.INFO, GOROUTINE_NAME, "Updated record with key: "+data.Key, nil))
 	render.JSON(w, r, Resp{Response: "", Ok: true})
 }
 
@@ -110,6 +128,7 @@ func getRecord(w http.ResponseWriter, r *http.Request) {
 	} else {
 		res = Resp{Response: value, Ok: true}
 	}
+	log.Println(logs.MakeLogString(logs.INFO, GOROUTINE_NAME, "Fetched record with key: "+key, nil))
 	render.JSON(w, r, res)
 }
 
@@ -141,6 +160,7 @@ func addDict(w http.ResponseWriter, r *http.Request) {
 	}
 	ttl := time.Second * time.Duration(data.TTL)
 	storage.Set(data.Key, data.Value, ttl)
+	log.Println(logs.MakeLogString(logs.INFO, GOROUTINE_NAME, "Added dictionary with key: "+data.Key, nil))
 	render.JSON(w, r, Resp{Response: "", Ok: true})
 }
 
@@ -156,6 +176,7 @@ func getDictRecord(w http.ResponseWriter, r *http.Request) {
 	} else {
 		res = Resp{Response: value, Ok: true}
 	}
+	log.Println(logs.MakeLogString(logs.INFO, GOROUTINE_NAME, "Fetched dictionary with key: "+key+" and subkey: "+dictKey, nil))
 	render.JSON(w, r, res)
 }
 
@@ -173,6 +194,7 @@ func addList(w http.ResponseWriter, r *http.Request) {
 	}
 	ttl := time.Second * time.Duration(data.TTL)
 	storage.Set(data.Key, data.Value, ttl)
+	log.Println(logs.MakeLogString(logs.INFO, GOROUTINE_NAME, "Added list with key: "+data.Key, nil))
 	render.JSON(w, r, Resp{Response: "", Ok: true})
 }
 
@@ -189,5 +211,59 @@ func getListRecord(w http.ResponseWriter, r *http.Request) {
 	} else {
 		res = Resp{Response: value, Ok: true}
 	}
+	log.Println(logs.MakeLogString(logs.INFO, GOROUTINE_NAME, "Fetched list with key: "+key+" and index: "+strconv.Itoa(indexInt), nil))
+	render.JSON(w, r, res)
+}
+
+// saveToDb store all data to MongoDB
+func saveToDb(w http.ResponseWriter, r *http.Request) {
+	var res Resp
+	session, err := mgo.Dial(mdbConnectionString)
+	if err != nil {
+		render.Status(r, http.StatusInternalServerError)
+		res.Ok = false
+		res.Error = err.Error()
+		render.JSON(w, r, res)
+		return
+	}
+	defer session.Close()
+	c := session.DB(mdbDbName).C(mdbCollection)
+	if err := c.DropCollection(); err != nil && err.Error() != "ns not found" {
+		log.Println(err)
+		render.Status(r, http.StatusInternalServerError)
+		res.Ok = false
+		res.Error = err.Error()
+		render.JSON(w, r, res)
+		return
+	}
+	keys := storage.Keys()
+	count := 100
+	bulk := c.Bulk()
+	for _, key := range keys {
+		value, _ := storage.Get(key)
+		bulk.Insert(map[string]interface{}{"key": key, "value": value})
+		count--
+		if count == 0 {
+			count = 100
+			if _, err := bulk.Run(); err != nil {
+				render.Status(r, http.StatusInternalServerError)
+				res.Ok = false
+				res.Error = err.Error()
+				render.JSON(w, r, res)
+				return
+			}
+		}
+	}
+	if count < 100 {
+		if _, err := bulk.Run(); err != nil {
+			render.Status(r, http.StatusInternalServerError)
+			res.Ok = false
+			res.Error = err.Error()
+			render.JSON(w, r, res)
+			return
+		}
+	}
+	res.Ok = true
+	res.Response = ""
 	render.JSON(w, r, res)
 }

@@ -3,9 +3,12 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/Labutin/KVServer/logs"
 	"github.com/Labutin/MemoryKeyValueStorage/kvstorage"
+	"github.com/hashicorp/logutils"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -388,6 +391,17 @@ func TestAddRecord(t *testing.T) {
 				},
 			},
 		},
+		{
+			url:    server.URL + urlPath + "/saveToDb",
+			method: http.MethodGet,
+			response: testResponse{
+				responseCode: http.StatusOK,
+				response: Resp{
+					Response: "",
+					Ok:       true,
+				},
+			},
+		},
 	}
 	testRequests(t, requests)
 	value, ok := storage.Get(postBodyt1["key"].(string))
@@ -459,6 +473,21 @@ func TestKeys(t *testing.T) {
 
 func TestMain(m *testing.M) {
 	InitStorage(10)
+	InitPersistentStorage("127.0.0.1:27017", "cmap", "data")
 	server = httptest.NewServer(InitRouter())
 	os.Exit(m.Run())
+}
+
+func init() {
+	filter := &logutils.LevelFilter{
+		Levels: []logutils.LogLevel{
+			logutils.LogLevel(logs.DEBUG.String()),
+			logutils.LogLevel(logs.INFO.String()),
+			logutils.LogLevel(logs.WARN.String()),
+			logutils.LogLevel(logs.ERROR.String()),
+		},
+		MinLevel: logutils.LogLevel(logs.ERROR.String()),
+		Writer:   os.Stdout,
+	}
+	log.SetOutput(filter)
 }

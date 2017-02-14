@@ -11,8 +11,11 @@ import (
 )
 
 var opts struct {
-	Chunks       uint32 `long:"chunks" env:"CHUNKS" description:"Number chunks in cocurrent map" required:"true"`
-	LoggingLevel string `long:"logginglevel" env:"LOGGING_LEVEL" description:"Logging level" default:"INFO" required:"true"`
+	Chunks              uint32 `long:"chunks" env:"CHUNKS" description:"Number chunks in cocurrent map" required:"true"`
+	LoggingLevel        string `long:"loggingLevel" env:"LOGGING_LEVEL" description:"Logging level" default:"INFO" required:"true"`
+	MDBConnectionString string `long:"mdbConnectionString" env:"MDB_CONNECTION_STRING" description:"MongoDB connection string" required:"true"`
+	MDBDbName           string `long:"mdbDbName" env:"MDB_DATABASE" description:"MongoDB database name" required:"true"`
+	MDBCollection       string `long:"mdbCollection" env:"MDB_COLLECTION" description:"MongoDB collection name" required:"true"`
 }
 
 func main() {
@@ -35,6 +38,8 @@ func main() {
 	}
 	log.SetOutput(filter)
 	api.InitStorage(opts.Chunks)
+	api.InitPersistentStorage(opts.MDBConnectionString, opts.MDBDbName, opts.MDBCollection)
+	log.Println(logs.MakeLogString(logs.INFO, "main", "Ready to recieve requests", nil))
 	http.ListenAndServe(":8081", api.InitRouter())
 }
 
