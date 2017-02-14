@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 )
 
@@ -30,7 +31,7 @@ type testRequest struct {
 func TestPing(t *testing.T) {
 	resp, err := http.Get(server.URL + "/v1/ping")
 	require.NoError(t, err)
-	require.Equal(t, 200, resp.StatusCode)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
 	body, err := ioutil.ReadAll(resp.Body)
 	require.NoError(t, err)
 	require.Equal(t, []byte("pong"), body)
@@ -66,6 +67,13 @@ func testRequests(t *testing.T, requests []testRequest) {
 			require.NoError(t, err)
 			resp, err := http.DefaultClient.Do(req)
 			checkRequest(t, testRequest, resp, err)
+		case http.MethodDelete:
+			body, err := json.Marshal(testRequest.body)
+			require.NoError(t, err)
+			req, err := http.NewRequest(http.MethodDelete, testRequest.url, bytes.NewBuffer(body))
+			require.NoError(t, err)
+			resp, err := http.DefaultClient.Do(req)
+			checkRequest(t, testRequest, resp, err)
 		}
 	}
 }
@@ -87,7 +95,7 @@ func TestDict(t *testing.T) {
 			method: http.MethodPost,
 			body:   postBody,
 			response: testResponse{
-				responseCode: 200,
+				responseCode: http.StatusOK,
 				response: Resp{
 					Response: "",
 					Ok:       true,
@@ -98,7 +106,7 @@ func TestDict(t *testing.T) {
 			url:    server.URL + urlPath + "/getdict/dict/k2",
 			method: http.MethodGet,
 			response: testResponse{
-				responseCode: 200,
+				responseCode: http.StatusOK,
 				response: Resp{
 					Response: nestedMap,
 					Ok:       true,
@@ -109,7 +117,7 @@ func TestDict(t *testing.T) {
 			url:    server.URL + urlPath + "/getdict/dict/absentdict",
 			method: http.MethodGet,
 			response: testResponse{
-				responseCode: 404,
+				responseCode: http.StatusNotFound,
 				response: Resp{
 					Error: "Key in dictionary not found",
 					Ok:    false,
@@ -135,7 +143,7 @@ func TestList(t *testing.T) {
 			method: http.MethodPost,
 			body:   postBody,
 			response: testResponse{
-				responseCode: 200,
+				responseCode: http.StatusOK,
 				response: Resp{
 					Response: "",
 					Ok:       true,
@@ -146,7 +154,7 @@ func TestList(t *testing.T) {
 			url:    server.URL + urlPath + "/getlist/list/1",
 			method: http.MethodGet,
 			response: testResponse{
-				responseCode: 200,
+				responseCode: http.StatusOK,
 				response: Resp{
 					Response: nestedList[1],
 					Ok:       true,
@@ -157,7 +165,7 @@ func TestList(t *testing.T) {
 			url:    server.URL + urlPath + "/getlist/absentlist/0",
 			method: http.MethodGet,
 			response: testResponse{
-				responseCode: 404,
+				responseCode: http.StatusNotFound,
 				response: Resp{
 					Error: KeyNotFound.String(),
 					Ok:    false,
@@ -168,7 +176,7 @@ func TestList(t *testing.T) {
 			url:    server.URL + urlPath + "/getlist/list/100",
 			method: http.MethodGet,
 			response: testResponse{
-				responseCode: 404,
+				responseCode: http.StatusNotFound,
 				response: Resp{
 					Error: "Out of bound",
 					Ok:    false,
@@ -197,7 +205,7 @@ func TestUpdateRecord(t *testing.T) {
 			method: http.MethodPost,
 			body:   postBodyt1,
 			response: testResponse{
-				responseCode: 200,
+				responseCode: http.StatusOK,
 				response: Resp{
 					Response: "",
 					Ok:       true,
@@ -209,7 +217,7 @@ func TestUpdateRecord(t *testing.T) {
 			method: http.MethodPut,
 			body:   postBodyt2,
 			response: testResponse{
-				responseCode: 200,
+				responseCode: http.StatusOK,
 				response: Resp{
 					Response: "",
 					Ok:       true,
@@ -220,7 +228,7 @@ func TestUpdateRecord(t *testing.T) {
 			url:    server.URL + urlPath + "/get/t1",
 			method: http.MethodGet,
 			response: testResponse{
-				responseCode: 200,
+				responseCode: http.StatusOK,
 				response: Resp{
 					Response: postBodyt2["value"],
 					Ok:       true,
@@ -232,6 +240,56 @@ func TestUpdateRecord(t *testing.T) {
 	value, ok := storage.Get(postBodyt2["key"].(string))
 	require.True(t, ok)
 	require.Equal(t, postBodyt2["value"], value)
+
+}
+
+func TestRemoveRecord(t *testing.T) {
+	postBodyt1 := map[string]interface{}{}
+	postBodyt1["key"] = "t1"
+	postBodyt1["value"] = "v1"
+	postBodyt1["ttl"] = 0
+	postBodyt2 := map[string]interface{}{}
+	postBodyt2["key"] = "t1"
+	requests := []testRequest{
+		{
+			url:    server.URL + urlPath,
+			method: http.MethodPost,
+			body:   postBodyt1,
+			response: testResponse{
+				responseCode: http.StatusOK,
+				response: Resp{
+					Response: "",
+					Ok:       true,
+				},
+			},
+		},
+		{
+			url:    server.URL + urlPath,
+			method: http.MethodDelete,
+			body:   postBodyt2,
+			response: testResponse{
+				responseCode: http.StatusOK,
+				response: Resp{
+					Response: "",
+					Ok:       true,
+				},
+			},
+		},
+		{
+			url:    server.URL + urlPath + "/get/t1",
+			method: http.MethodGet,
+			response: testResponse{
+				responseCode: http.StatusNotFound,
+				response: Resp{
+					Error: KeyNotFound.String(),
+					Ok:    false,
+				},
+			},
+		},
+	}
+	testRequests(t, requests)
+	_, ok := storage.Get(postBodyt2["key"].(string))
+	require.False(t, ok)
 
 }
 
@@ -254,7 +312,7 @@ func TestAddRecord(t *testing.T) {
 			method: http.MethodPost,
 			body:   postBodyt1,
 			response: testResponse{
-				responseCode: 200,
+				responseCode: http.StatusOK,
 				response: Resp{
 					Response: "",
 					Ok:       true,
@@ -265,7 +323,7 @@ func TestAddRecord(t *testing.T) {
 			url:    server.URL + urlPath + "/get/t1",
 			method: http.MethodGet,
 			response: testResponse{
-				responseCode: 200,
+				responseCode: http.StatusOK,
 				response: Resp{
 					Response: postBodyt1["value"],
 					Ok:       true,
@@ -277,7 +335,7 @@ func TestAddRecord(t *testing.T) {
 			method: http.MethodPost,
 			body:   postBodyt2,
 			response: testResponse{
-				responseCode: 200,
+				responseCode: http.StatusOK,
 				response: Resp{
 					Response: "",
 					Ok:       true,
@@ -288,7 +346,7 @@ func TestAddRecord(t *testing.T) {
 			url:    server.URL + urlPath + "/get/t2",
 			method: http.MethodGet,
 			response: testResponse{
-				responseCode: 200,
+				responseCode: http.StatusOK,
 				response: Resp{
 					Response: postBodyt2["value"],
 					Ok:       true,
@@ -300,7 +358,7 @@ func TestAddRecord(t *testing.T) {
 			method: http.MethodPost,
 			body:   postBodyt3,
 			response: testResponse{
-				responseCode: 200,
+				responseCode: http.StatusOK,
 				response: Resp{
 					Response: "",
 					Ok:       true,
@@ -311,7 +369,7 @@ func TestAddRecord(t *testing.T) {
 			url:    server.URL + urlPath + "/get/t3",
 			method: http.MethodGet,
 			response: testResponse{
-				responseCode: 200,
+				responseCode: http.StatusOK,
 				response: Resp{
 					Response: postBodyt3["value"],
 					Ok:       true,
@@ -322,7 +380,7 @@ func TestAddRecord(t *testing.T) {
 			url:    server.URL + urlPath + "/get/absentsimple",
 			method: http.MethodGet,
 			response: testResponse{
-				responseCode: 404,
+				responseCode: http.StatusNotFound,
 				response: Resp{
 					Response: nil,
 					Error:    KeyNotFound.String(),
@@ -343,7 +401,64 @@ func TestAddRecord(t *testing.T) {
 	require.Equal(t, postBodyt3["value"], value)
 }
 
-func init() {
+func TestKeys(t *testing.T) {
+	InitStorage(10)
+	postBodyt1 := map[string]interface{}{}
+	postBodyt1["key"] = "t1"
+	postBodyt1["value"] = "v1"
+	postBodyt1["ttl"] = 0
+	postBodyt2 := map[string]interface{}{}
+	postBodyt2["key"] = "t2"
+	postBodyt2["value"] = float64(2)
+	postBodyt2["ttl"] = 0
+	requests := []testRequest{
+		{
+			url:    server.URL + urlPath,
+			method: http.MethodPost,
+			body:   postBodyt1,
+			response: testResponse{
+				responseCode: http.StatusOK,
+				response: Resp{
+					Response: "",
+					Ok:       true,
+				},
+			},
+		},
+		{
+			url:    server.URL + urlPath,
+			method: http.MethodPost,
+			body:   postBodyt2,
+			response: testResponse{
+				responseCode: http.StatusOK,
+				response: Resp{
+					Response: "",
+					Ok:       true,
+				},
+			},
+		},
+		{
+			url:    server.URL + urlPath + "/keys",
+			method: http.MethodGet,
+			response: testResponse{
+				responseCode: http.StatusOK,
+				response: Resp{
+					Response: []interface{}{postBodyt1["key"], postBodyt2["key"]},
+					Ok:       true,
+				},
+			},
+		},
+	}
+	testRequests(t, requests)
+	value, ok := storage.Get(postBodyt1["key"].(string))
+	require.True(t, ok)
+	require.Equal(t, postBodyt1["value"], value)
+	value, ok = storage.Get(postBodyt2["key"].(string))
+	require.True(t, ok)
+	require.Equal(t, postBodyt2["value"], value)
+}
+
+func TestMain(m *testing.M) {
 	InitStorage(10)
 	server = httptest.NewServer(InitRouter())
+	os.Exit(m.Run())
 }

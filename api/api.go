@@ -1,14 +1,13 @@
 package api
 
 import (
+	"fmt"
 	"github.com/Labutin/MemoryKeyValueStorage/kvstorage"
 	"github.com/pressly/chi"
 	"github.com/pressly/chi/render"
 	"net/http"
 	"strconv"
 	"time"
-
-	"fmt"
 )
 
 var (
@@ -45,13 +44,14 @@ func InitRouter() *chi.Mux {
 		r.Route("/getlist/:key/:index", func(r chi.Router) {
 			r.Get("/", getListRecord)
 		})
-
-		r.Route("/", func (r chi.Router) {
+		r.Route("/", func(r chi.Router) {
 			r.Post("/", addRecord)
 			r.Put("/", updateRecord)
+			r.Delete("/", removeRecord)
 		})
 		r.Post("/dict/", addDict)
 		r.Post("/list/", addList)
+		r.Get("/keys", getAllKeys)
 	})
 
 	return r
@@ -94,6 +94,11 @@ func updateRecord(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, Resp{Response: "", Ok: true})
 }
 
+// getAllKeys returns all keys in storage
+func getAllKeys(w http.ResponseWriter, r *http.Request) {
+	render.JSON(w, r, Resp{Response: storage.Keys(), Ok: true})
+}
+
 // getRecord returns record from storage
 func getRecord(w http.ResponseWriter, r *http.Request) {
 	key := chi.URLParam(r, "key")
@@ -106,6 +111,20 @@ func getRecord(w http.ResponseWriter, r *http.Request) {
 		res = Resp{Response: value, Ok: true}
 	}
 	render.JSON(w, r, res)
+}
+
+// removeRecord removes record with given key from storage
+func removeRecord(w http.ResponseWriter, r *http.Request) {
+	var data struct {
+		Key string `json:"key"`
+	}
+	if err := render.Bind(r.Body, &data); err != nil {
+		render.Status(r, http.StatusNotAcceptable)
+		render.JSON(w, r, Resp{Error: err.Error(), Ok: false})
+		return
+	}
+	storage.Remove(data.Key)
+	render.JSON(w, r, Resp{Response: "", Ok: true})
 }
 
 // addDict puts dictionary to storage
