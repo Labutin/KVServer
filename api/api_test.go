@@ -51,13 +51,20 @@ func checkRequest(t *testing.T, testRequest testRequest, resp *http.Response, er
 func testRequests(t *testing.T, requests []testRequest) {
 	for _, testRequest := range requests {
 		switch testRequest.method {
-		case "POST":
+		case http.MethodPost:
 			body, err := json.Marshal(testRequest.body)
 			require.NoError(t, err)
 			resp, err := http.Post(testRequest.url, "application/json", bytes.NewBuffer(body))
 			checkRequest(t, testRequest, resp, err)
-		case "GET":
+		case http.MethodGet:
 			resp, err := http.Get(testRequest.url)
+			checkRequest(t, testRequest, resp, err)
+		case http.MethodPut:
+			body, err := json.Marshal(testRequest.body)
+			require.NoError(t, err)
+			req, err := http.NewRequest(http.MethodPut, testRequest.url, bytes.NewBuffer(body))
+			require.NoError(t, err)
+			resp, err := http.DefaultClient.Do(req)
 			checkRequest(t, testRequest, resp, err)
 		}
 	}
@@ -77,7 +84,7 @@ func TestDict(t *testing.T) {
 	requests := []testRequest{
 		{
 			url:    server.URL + urlPath + "/dict/",
-			method: "POST",
+			method: http.MethodPost,
 			body:   postBody,
 			response: testResponse{
 				responseCode: 200,
@@ -89,7 +96,7 @@ func TestDict(t *testing.T) {
 		},
 		{
 			url:    server.URL + urlPath + "/getdict/dict/k2",
-			method: "GET",
+			method: http.MethodGet,
 			response: testResponse{
 				responseCode: 200,
 				response: Resp{
@@ -100,7 +107,7 @@ func TestDict(t *testing.T) {
 		},
 		{
 			url:    server.URL + urlPath + "/getdict/dict/absentdict",
-			method: "GET",
+			method: http.MethodGet,
 			response: testResponse{
 				responseCode: 404,
 				response: Resp{
@@ -125,7 +132,7 @@ func TestList(t *testing.T) {
 	requests := []testRequest{
 		{
 			url:    server.URL + urlPath + "/list/",
-			method: "POST",
+			method: http.MethodPost,
 			body:   postBody,
 			response: testResponse{
 				responseCode: 200,
@@ -137,7 +144,7 @@ func TestList(t *testing.T) {
 		},
 		{
 			url:    server.URL + urlPath + "/getlist/list/1",
-			method: "GET",
+			method: http.MethodGet,
 			response: testResponse{
 				responseCode: 200,
 				response: Resp{
@@ -148,7 +155,7 @@ func TestList(t *testing.T) {
 		},
 		{
 			url:    server.URL + urlPath + "/getlist/absentlist/0",
-			method: "GET",
+			method: http.MethodGet,
 			response: testResponse{
 				responseCode: 404,
 				response: Resp{
@@ -159,7 +166,7 @@ func TestList(t *testing.T) {
 		},
 		{
 			url:    server.URL + urlPath + "/getlist/list/100",
-			method: "GET",
+			method: http.MethodGet,
 			response: testResponse{
 				responseCode: 404,
 				response: Resp{
@@ -173,6 +180,59 @@ func TestList(t *testing.T) {
 	value, ok := storage.Get("list")
 	require.True(t, ok)
 	require.Equal(t, postBody["value"], value)
+}
+
+func TestUpdateRecord(t *testing.T) {
+	postBodyt1 := map[string]interface{}{}
+	postBodyt1["key"] = "t1"
+	postBodyt1["value"] = "v1"
+	postBodyt1["ttl"] = 0
+	postBodyt2 := map[string]interface{}{}
+	postBodyt2["key"] = "t1"
+	postBodyt2["value"] = "vupdated"
+	postBodyt2["ttl"] = 0
+	requests := []testRequest{
+		{
+			url:    server.URL + urlPath,
+			method: http.MethodPost,
+			body:   postBodyt1,
+			response: testResponse{
+				responseCode: 200,
+				response: Resp{
+					Response: "",
+					Ok:       true,
+				},
+			},
+		},
+		{
+			url:    server.URL + urlPath,
+			method: http.MethodPut,
+			body:   postBodyt2,
+			response: testResponse{
+				responseCode: 200,
+				response: Resp{
+					Response: "",
+					Ok:       true,
+				},
+			},
+		},
+		{
+			url:    server.URL + urlPath + "/get/t1",
+			method: http.MethodGet,
+			response: testResponse{
+				responseCode: 200,
+				response: Resp{
+					Response: postBodyt2["value"],
+					Ok:       true,
+				},
+			},
+		},
+	}
+	testRequests(t, requests)
+	value, ok := storage.Get(postBodyt2["key"].(string))
+	require.True(t, ok)
+	require.Equal(t, postBodyt2["value"], value)
+
 }
 
 func TestAddRecord(t *testing.T) {
@@ -191,7 +251,7 @@ func TestAddRecord(t *testing.T) {
 	requests := []testRequest{
 		{
 			url:    server.URL + urlPath,
-			method: "POST",
+			method: http.MethodPost,
 			body:   postBodyt1,
 			response: testResponse{
 				responseCode: 200,
@@ -203,7 +263,7 @@ func TestAddRecord(t *testing.T) {
 		},
 		{
 			url:    server.URL + urlPath + "/get/t1",
-			method: "GET",
+			method: http.MethodGet,
 			response: testResponse{
 				responseCode: 200,
 				response: Resp{
@@ -214,7 +274,7 @@ func TestAddRecord(t *testing.T) {
 		},
 		{
 			url:    server.URL + urlPath,
-			method: "POST",
+			method: http.MethodPost,
 			body:   postBodyt2,
 			response: testResponse{
 				responseCode: 200,
@@ -226,7 +286,7 @@ func TestAddRecord(t *testing.T) {
 		},
 		{
 			url:    server.URL + urlPath + "/get/t2",
-			method: "GET",
+			method: http.MethodGet,
 			response: testResponse{
 				responseCode: 200,
 				response: Resp{
@@ -237,7 +297,7 @@ func TestAddRecord(t *testing.T) {
 		},
 		{
 			url:    server.URL + urlPath,
-			method: "POST",
+			method: http.MethodPost,
 			body:   postBodyt3,
 			response: testResponse{
 				responseCode: 200,
@@ -249,7 +309,7 @@ func TestAddRecord(t *testing.T) {
 		},
 		{
 			url:    server.URL + urlPath + "/get/t3",
-			method: "GET",
+			method: http.MethodGet,
 			response: testResponse{
 				responseCode: 200,
 				response: Resp{
@@ -260,7 +320,7 @@ func TestAddRecord(t *testing.T) {
 		},
 		{
 			url:    server.URL + urlPath + "/get/absentsimple",
-			method: "GET",
+			method: http.MethodGet,
 			response: testResponse{
 				responseCode: 404,
 				response: Resp{

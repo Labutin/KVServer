@@ -45,7 +45,11 @@ func InitRouter() *chi.Mux {
 		r.Route("/getlist/:key/:index", func(r chi.Router) {
 			r.Get("/", getListRecord)
 		})
-		r.Post("/", addRecord)
+
+		r.Route("/", func (r chi.Router) {
+			r.Post("/", addRecord)
+			r.Put("/", updateRecord)
+		})
 		r.Post("/dict/", addDict)
 		r.Post("/list/", addList)
 	})
@@ -72,6 +76,21 @@ func addRecord(w http.ResponseWriter, r *http.Request) {
 	}
 	ttl := time.Second * time.Duration(data.TTL)
 	storage.Set(data.Key, data.Value, ttl)
+	render.JSON(w, r, Resp{Response: "", Ok: true})
+}
+
+// updateRecord updates record with given key
+func updateRecord(w http.ResponseWriter, r *http.Request) {
+	var data struct {
+		Key   string      `json:"key"`
+		Value interface{} `json:"value"`
+	}
+	if err := render.Bind(r.Body, &data); err != nil {
+		render.Status(r, http.StatusNotAcceptable)
+		render.JSON(w, r, Resp{Error: err.Error(), Ok: false})
+		return
+	}
+	storage.Update(data.Key, data.Value)
 	render.JSON(w, r, Resp{Response: "", Ok: true})
 }
 
