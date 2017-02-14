@@ -99,7 +99,7 @@ func TestDict(t *testing.T) {
 			},
 		},
 		{
-			url:    server.URL + urlPath + "/getdict/dict/absent",
+			url:    server.URL + urlPath + "/getdict/dict/absentdict",
 			method: "GET",
 			response: testResponse{
 				responseCode: 404,
@@ -112,6 +112,65 @@ func TestDict(t *testing.T) {
 	}
 	testRequests(t, requests)
 	value, ok := storage.Get("dict")
+	require.True(t, ok)
+	require.Equal(t, postBody["value"], value)
+}
+
+func TestList(t *testing.T) {
+	nestedList := kvstorage.List{float64(1), float64(2), float64(3)}
+	postBody := map[string]interface{}{}
+	postBody["key"] = "list"
+	postBody["value"] = nestedList
+
+	requests := []testRequest{
+		{
+			url:    server.URL + urlPath + "/list/",
+			method: "POST",
+			body:   postBody,
+			response: testResponse{
+				responseCode: 200,
+				response: Resp{
+					Response: "",
+					Ok:       true,
+				},
+			},
+		},
+		{
+			url:    server.URL + urlPath + "/getlist/list/1",
+			method: "GET",
+			response: testResponse{
+				responseCode: 200,
+				response: Resp{
+					Response: nestedList[1],
+					Ok:       true,
+				},
+			},
+		},
+		{
+			url:    server.URL + urlPath + "/getlist/absentlist/0",
+			method: "GET",
+			response: testResponse{
+				responseCode: 404,
+				response: Resp{
+					Error: KeyNotFound.String(),
+					Ok:    false,
+				},
+			},
+		},
+		{
+			url:    server.URL + urlPath + "/getlist/list/100",
+			method: "GET",
+			response: testResponse{
+				responseCode: 404,
+				response: Resp{
+					Error: "Out of bound",
+					Ok:    false,
+				},
+			},
+		},
+	}
+	testRequests(t, requests)
+	value, ok := storage.Get("list")
 	require.True(t, ok)
 	require.Equal(t, postBody["value"], value)
 }
@@ -200,7 +259,7 @@ func TestAddRecord(t *testing.T) {
 			},
 		},
 		{
-			url:    server.URL + urlPath + "/get/absent",
+			url:    server.URL + urlPath + "/get/absentsimple",
 			method: "GET",
 			response: testResponse{
 				responseCode: 404,
