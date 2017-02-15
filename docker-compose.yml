@@ -1,0 +1,28 @@
+version: '2'
+services:
+  mongo:
+    image: mongo:3.4
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    volumes:
+      - mongo:/data/db
+    command: --storageEngine wiredTiger
+
+  kvserver:
+    build: Server
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    ports:
+      - "8081:8081"
+    env_file:
+      - ./server.env
+volumes:
+  mongo:
