@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/Labutin/KVServer/logs"
-	"github.com/Labutin/MemoryKeyValueStorage/kvstorage"
 	"github.com/hashicorp/logutils"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
@@ -88,7 +87,7 @@ func TestDict(t *testing.T) {
 	}
 	postBody := map[string]interface{}{}
 	postBody["key"] = "dict"
-	postBody["value"] = kvstorage.Dict{
+	postBody["value"] = map[string]interface{}{
 		"k1": float64(1),
 		"k2": nestedMap,
 	}
@@ -135,7 +134,7 @@ func TestDict(t *testing.T) {
 }
 
 func TestList(t *testing.T) {
-	nestedList := kvstorage.List{float64(1), float64(2), float64(3)}
+	nestedList := []interface{}{float64(1), float64(2), float64(3)}
 	postBody := map[string]interface{}{}
 	postBody["key"] = "list"
 	postBody["value"] = nestedList

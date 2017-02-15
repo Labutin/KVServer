@@ -2,11 +2,11 @@ package api
 
 import (
 	"fmt"
+	"github.com/Labutin/KVServer/api/persist"
 	"github.com/Labutin/KVServer/logs"
 	"github.com/Labutin/MemoryKeyValueStorage/kvstorage"
 	"github.com/pressly/chi"
 	"github.com/pressly/chi/render"
-	"gopkg.in/mgo.v2"
 	"log"
 	"net/http"
 	"strconv"
@@ -61,6 +61,7 @@ func InitRouter() *chi.Mux {
 		r.Post("/list/", addList)
 		r.Get("/keys", getAllKeys)
 		r.Get("/saveToDb", saveToDb)
+		r.Get("/loadFromDb", loadFromDb)
 	})
 
 	return r
@@ -149,9 +150,9 @@ func removeRecord(w http.ResponseWriter, r *http.Request) {
 // addDict puts dictionary to storage
 func addDict(w http.ResponseWriter, r *http.Request) {
 	var data struct {
-		Key   string         `json:"key"`
-		Value kvstorage.Dict `json:"value"`
-		TTL   int64          `json:"ttl"`
+		Key   string                 `json:"key"`
+		Value map[string]interface{} `json:"value"`
+		TTL   int64                  `json:"ttl"`
 	}
 	if err := render.Bind(r.Body, &data); err != nil {
 		render.Status(r, http.StatusNotAcceptable)
@@ -183,9 +184,9 @@ func getDictRecord(w http.ResponseWriter, r *http.Request) {
 // addList puts list to storage
 func addList(w http.ResponseWriter, r *http.Request) {
 	var data struct {
-		Key   string         `json:"key"`
-		Value kvstorage.List `json:"value"`
-		TTL   int64          `json:"ttl"`
+		Key   string        `json:"key"`
+		Value []interface{} `json:"value"`
+		TTL   int64         `json:"ttl"`
 	}
 	if err := render.Bind(r.Body, &data); err != nil {
 		render.Status(r, http.StatusNotAcceptable)
@@ -217,8 +218,8 @@ func getListRecord(w http.ResponseWriter, r *http.Request) {
 
 // saveToDb store all data to MongoDB
 func saveToDb(w http.ResponseWriter, r *http.Request) {
+	err := persist.SaveToDb(storage, mdbConnectionString, mdbDbName, mdbCollection)
 	var res Resp
-	session, err := mgo.Dial(mdbConnectionString)
 	if err != nil {
 		render.Status(r, http.StatusInternalServerError)
 		res.Ok = false
@@ -226,42 +227,20 @@ func saveToDb(w http.ResponseWriter, r *http.Request) {
 		render.JSON(w, r, res)
 		return
 	}
-	defer session.Close()
-	c := session.DB(mdbDbName).C(mdbCollection)
-	if err := c.DropCollection(); err != nil && err.Error() != "ns not found" {
-		log.Println(err)
+	res.Ok = true
+	res.Response = ""
+	render.JSON(w, r, res)
+}
+
+func loadFromDb(w http.ResponseWriter, r *http.Request) {
+	err := persist.LoadFromDb(storage, mdbConnectionString, mdbDbName, mdbCollection)
+	var res Resp
+	if err != nil {
 		render.Status(r, http.StatusInternalServerError)
 		res.Ok = false
 		res.Error = err.Error()
 		render.JSON(w, r, res)
 		return
-	}
-	keys := storage.Keys()
-	count := 100
-	bulk := c.Bulk()
-	for _, key := range keys {
-		value, _ := storage.Get(key)
-		bulk.Insert(map[string]interface{}{"key": key, "value": value})
-		count--
-		if count == 0 {
-			count = 100
-			if _, err := bulk.Run(); err != nil {
-				render.Status(r, http.StatusInternalServerError)
-				res.Ok = false
-				res.Error = err.Error()
-				render.JSON(w, r, res)
-				return
-			}
-		}
-	}
-	if count < 100 {
-		if _, err := bulk.Run(); err != nil {
-			render.Status(r, http.StatusInternalServerError)
-			res.Ok = false
-			res.Error = err.Error()
-			render.JSON(w, r, res)
-			return
-		}
 	}
 	res.Ok = true
 	res.Response = ""
