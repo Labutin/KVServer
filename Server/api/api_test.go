@@ -3,7 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/Labutin/KVServer/logs"
+	"github.com/Labutin/KVServer/Server/logs"
 	"github.com/hashicorp/logutils"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"

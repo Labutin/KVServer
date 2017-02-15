@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/Labutin/KVServer/api"
-	"github.com/Labutin/KVServer/logs"
+	"github.com/Labutin/KVServer/Server/api"
+	"github.com/Labutin/KVServer/Server/logs"
 	"github.com/hashicorp/logutils"
 	"github.com/jessevdk/go-flags"
 	"log"

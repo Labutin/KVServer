@@ -2,8 +2,8 @@ package api
 
 import (
 	"fmt"
-	"github.com/Labutin/KVServer/api/persist"
-	"github.com/Labutin/KVServer/logs"
+	"github.com/Labutin/KVServer/Server/api/persist"
+	"github.com/Labutin/KVServer/Server/logs"
 	"github.com/Labutin/MemoryKeyValueStorage/kvstorage"
 	"github.com/pressly/chi"
 	"github.com/pressly/chi/render"
