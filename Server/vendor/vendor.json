@@ -3,34 +3,6 @@
 	"ignore": "test",
 	"package": [
 		{
-			"checksumSHA1": "aUNCCkvbl+M5TLfyKsI7YyIGF5w=",
-			"origin": "github.com/Labutin/KVServer/Server/vendor/github.com/Labutin/KVServer/Server",
-			"path": "github.com/Labutin/KVServer/Server",
-			"revision": "37aef1d5e8b46bcfddeb885b6c6c78b59b213aa7",
-			"revisionTime": "2017-02-15T14:17:17Z"
-		},
-		{
-			"checksumSHA1": "k4/d1N/0Xo1r2UqhshWdh240nwU=",
-			"origin": "github.com/Labutin/KVServer/Server/vendor/github.com/Labutin/KVServer/Server/api",
-			"path": "github.com/Labutin/KVServer/Server/api",
-			"revision": "37aef1d5e8b46bcfddeb885b6c6c78b59b213aa7",
-			"revisionTime": "2017-02-15T14:17:17Z"
-		},
-		{
-			"checksumSHA1": "4VlH5C0VPezpgMVxyUj8bLtatVA=",
-			"origin": "github.com/Labutin/KVServer/Server/vendor/github.com/Labutin/KVServer/Server/api/persist",
-			"path": "github.com/Labutin/KVServer/Server/api/persist",
-			"revision": "37aef1d5e8b46bcfddeb885b6c6c78b59b213aa7",
-			"revisionTime": "2017-02-15T14:17:17Z"
-		},
-		{
-			"checksumSHA1": "ES1DGwdWGhOYuOhLA7Cn+zOWPBI=",
-			"origin": "github.com/Labutin/KVServer/Server/vendor/github.com/Labutin/KVServer/Server/logs",
-			"path": "github.com/Labutin/KVServer/Server/logs",
-			"revision": "37aef1d5e8b46bcfddeb885b6c6c78b59b213aa7",
-			"revisionTime": "2017-02-15T14:17:17Z"
-		},
-		{
 			"checksumSHA1": "xV/NnFDmc2a9cH+OEwMLgQg77yI=",
 			"origin": "github.com/Labutin/KVServer/Server/vendor/github.com/Labutin/MemoryKeyValueStorage/kvstorage",
 			"path": "github.com/Labutin/MemoryKeyValueStorage/kvstorage",
