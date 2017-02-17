@@ -15,6 +15,7 @@ import (
 
 var (
 	storage             *kvstorage.Storage
+	chuncks             uint32
 	urlPath             = "/v1/kvstorage"
 	mdbConnectionString string
 	mdbDbName           string
@@ -68,8 +69,9 @@ func InitRouter() *chi.Mux {
 }
 
 // InitStorage creates Key/Value storage
-func InitStorage(chunks uint32) {
-	storage = kvstorage.NewKVStorage(chunks, true)
+func InitStorage(totalChunks uint32) {
+	storage = kvstorage.NewKVStorage(totalChunks, true)
+	chuncks = totalChunks
 }
 
 // InitPersistentStorage sets MongoDb params
@@ -102,13 +104,15 @@ func updateRecord(w http.ResponseWriter, r *http.Request) {
 	var data struct {
 		Key   string      `json:"key"`
 		Value interface{} `json:"value"`
+		TTL   int64       `json:"ttl"`
 	}
 	if err := render.Bind(r.Body, &data); err != nil {
 		render.Status(r, http.StatusNotAcceptable)
 		render.JSON(w, r, Resp{Error: err.Error(), Ok: false})
 		return
 	}
-	storage.Update(data.Key, data.Value)
+	ttl := time.Second * time.Duration(data.TTL)
+	storage.Update(data.Key, data.Value, ttl)
 	log.Println(logs.MakeLogString(logs.INFO, GOROUTINE_NAME, "Updated record with key: "+data.Key, nil))
 	render.JSON(w, r, Resp{Response: "", Ok: true})
 }
@@ -232,7 +236,10 @@ func saveToDb(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, res)
 }
 
+// saveToDb restore all data from MongoDB
 func loadFromDb(w http.ResponseWriter, r *http.Request) {
+	storage.StopTTLProcessing()
+	InitStorage(chuncks)
 	err := persist.LoadFromDb(storage, mdbConnectionString, mdbDbName, mdbCollection)
 	var res Resp
 	if err != nil {

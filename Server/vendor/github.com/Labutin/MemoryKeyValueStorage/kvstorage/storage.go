@@ -39,7 +39,7 @@ func NewKVStorage(chunks uint32, startTTLRemoval bool) *Storage {
 	kvstorage.lastClearedTTL = time.Now().Unix() - 1
 	kvstorage.ttlTimeout = TTLTimeout
 	if startTTLRemoval {
-		go kvstorage.startTTLProcessing()
+		go kvstorage.StartTTLProcessing()
 	}
 
 	return kvstorage
@@ -203,13 +203,13 @@ func (t *Storage) ttlRemoval() {
 }
 
 // stopTTLProcessing stops processing records TTL
-func (t *Storage) stopTTLProcessing() {
+func (t *Storage) StopTTLProcessing() {
 	close(t.done)
 	t.wg.Wait()
 }
 
 // startTTLProcessing starts processing records TTL
-func (t *Storage) startTTLProcessing() {
+func (t *Storage) StartTTLProcessing() {
 	t.done = make(chan interface{})
 	go t.ttlRemoval()
 }

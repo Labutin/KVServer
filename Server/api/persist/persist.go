@@ -1,15 +1,19 @@
 package persist
 
 import (
+	"github.com/Labutin/KVServer/Server/logs"
 	"github.com/Labutin/MemoryKeyValueStorage/kvstorage"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
+	"log"
+	"time"
 )
 
 const (
 	TYPE_GENERAL = "general"
 	TYPE_LIST    = "list"
 	TYPE_DICT    = "dict"
+	GOROUTINE_ID = "persist"
 )
 
 func SaveToDb(storage *kvstorage.Storage, connectionString, dbName, collection string) error {
@@ -26,7 +30,7 @@ func SaveToDb(storage *kvstorage.Storage, connectionString, dbName, collection s
 	count := 100
 	bulk := c.Bulk()
 	for _, key := range keys {
-		if value, ok := storage.Get(key); ok {
+		if value, ttl, ok := storage.GetWithTTL(key); ok {
 			vType := TYPE_GENERAL
 			switch value.(type) {
 			case []interface{}:
@@ -34,7 +38,7 @@ func SaveToDb(storage *kvstorage.Storage, connectionString, dbName, collection s
 			case map[string]interface{}:
 				vType = TYPE_DICT
 			}
-			bulk.Insert(map[string]interface{}{"key": key, "value": value, "type": vType})
+			bulk.Insert(map[string]interface{}{"key": key, "value": value, "type": vType, "ttl": ttl})
 			count--
 			if count == 0 {
 				count = 100
@@ -63,8 +67,10 @@ func LoadFromDb(storage *kvstorage.Storage, connectionString, dbName, collection
 	item := struct {
 		Key   string
 		Value interface{}
+		TTL   int64
 		Type  string
 	}{}
+	currentTime := time.Now().Unix()
 	for iter.Next(&item) {
 		if item.Type == TYPE_DICT {
 			if bM, ok := item.Value.(bson.M); ok {
@@ -75,7 +81,13 @@ func LoadFromDb(storage *kvstorage.Storage, connectionString, dbName, collection
 				item.Value = tmpValue
 			}
 		}
-		storage.Set(item.Key, item.Value, 0)
+		if currentTime < item.TTL {
+			nsec := time.Duration(time.Unix(item.TTL, 0).Sub(time.Now()).Nanoseconds())
+			storage.Set(item.Key, item.Value, time.Nanosecond*nsec)
+			log.Println(logs.MakeLogString(logs.DEBUG, GOROUTINE_ID, "Loaded key: "+item.Key, nil))
+		} else {
+			log.Println(logs.MakeLogString(logs.DEBUG, GOROUTINE_ID, "Skipped key: "+item.Key, nil))
+		}
 	}
 	return nil
 }
