@@ -294,7 +294,9 @@ func Equal(t TestingT, expected, actual interface{}, msgAndArgs ...interface{}) 
 	if !ObjectsAreEqual(expected, actual) {
 		diff := diff(expected, actual)
 		expected, actual = formatUnequalValues(expected, actual)
-		return Fail(t, fmt.Sprintf("Not equal: \n"+"expected: %s\n"+"received: %s%s", expected, actual, diff), msgAndArgs...)
+		return Fail(t, fmt.Sprintf("Not equal: \n"+
+			"expected: %s\n"+
+			"received: %s%s", expected, actual, diff), msgAndArgs...)
 	}
 
 	return true
@@ -328,7 +330,9 @@ func EqualValues(t TestingT, expected, actual interface{}, msgAndArgs ...interfa
 	if !ObjectsAreEqualValues(expected, actual) {
 		diff := diff(expected, actual)
 		expected, actual = formatUnequalValues(expected, actual)
-		return Fail(t, fmt.Sprintf("Not equal: \n"+"expected: %s\n"+"received: %s%s", expected, actual, diff), msgAndArgs...)
+		return Fail(t, fmt.Sprintf("Not equal: \n"+
+			"expected: %s\n"+
+			"received: %s%s", expected, actual, diff), msgAndArgs...)
 	}
 
 	return true
@@ -842,7 +846,8 @@ func InEpsilon(t TestingT, expected, actual interface{}, epsilon float64, msgAnd
 		return Fail(t, err.Error(), msgAndArgs...)
 	}
 	if actualEpsilon > epsilon {
-		return Fail(t, fmt.Sprintf("Relative error is too high: %#v (expected)\n"+"        < %#v (actual)", actualEpsilon, epsilon), msgAndArgs...)
+		return Fail(t, fmt.Sprintf("Relative error is too high: %#v (expected)\n"+
+			"        < %#v (actual)", actualEpsilon, epsilon), msgAndArgs...)
 	}
 
 	return true
@@ -921,7 +926,9 @@ func EqualError(t TestingT, theError error, errString string, msgAndArgs ...inte
 	actual := theError.Error()
 	// don't need to use deep equals here, we know they are both strings
 	if expected != actual {
-		return Fail(t, fmt.Sprintf("Error message not equal:\n"+"expected: %q\n"+"received: %q", expected, actual), msgAndArgs...)
+		return Fail(t, fmt.Sprintf("Error message not equal:\n"+
+			"expected: %q\n"+
+			"received: %q", expected, actual), msgAndArgs...)
 	}
 	return true
 }

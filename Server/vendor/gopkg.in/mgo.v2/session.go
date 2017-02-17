@@ -1057,6 +1057,7 @@ type Index struct {
 }
 
 type Collation struct {
+
 	// Locale defines the collation locale.
 	Locale string `bson:"locale"`
 

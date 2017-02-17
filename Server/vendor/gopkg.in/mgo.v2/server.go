@@ -429,9 +429,9 @@ func (servers *mongoServers) BestFit(mode Mode, serverTags []bson.D) *mongoServe
 		swap := false
 		switch {
 		case serverTags != nil && !next.info.Mongos && !next.hasTags(serverTags):
-		// Must have requested tags.
+			// Must have requested tags.
 		case mode == Secondary && next.info.Master && !next.info.Mongos:
-		// Must be a secondary or mongos.
+			// Must be a secondary or mongos.
 		case next.info.Master != best.info.Master && mode != Nearest:
 			// Prefer slaves, unless the mode is PrimaryPreferred.
 			swap = (mode == PrimaryPreferred) != best.info.Master
