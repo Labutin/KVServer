@@ -15,6 +15,11 @@ type ttlValue struct {
 	keys []string
 }
 
+type cmapValue struct {
+	value interface{}
+	ttl   int64
+}
+
 type Storage struct {
 	cmap           concurrent_map.CMapInterface
 	ttl            concurrent_map.CMapInterface
@@ -55,9 +60,15 @@ func (t *Storage) ensureTTLKey(key string) *ttlValue {
 
 // Set stores value for given key and TTL
 func (t *Storage) Set(key string, value interface{}, TTL time.Duration) {
-	t.cmap.Put(key, value)
+	storeValue := &cmapValue{value: value}
+	whenToDelete := int64(0)
 	if TTL > 0 {
-		ttlKey := strconv.FormatInt(time.Now().Add(TTL).Unix(), 10)
+		whenToDelete = time.Now().Add(TTL).Unix()
+		storeValue.ttl = whenToDelete
+	}
+	t.cmap.Put(key, storeValue)
+	if TTL > 0 {
+		ttlKey := strconv.FormatInt(whenToDelete, 10)
 		var ttlRecord *ttlValue
 		if value, ok := t.ttl.Get(ttlKey); !ok {
 			ttlRecord = t.ensureTTLKey(ttlKey)
@@ -75,11 +86,11 @@ func (t *Storage) Set(key string, value interface{}, TTL time.Duration) {
 }
 
 // Update updates value for given key
-func (t *Storage) Update(key string, value interface{}) error {
+func (t *Storage) Update(key string, value interface{}, TTL time.Duration) error {
 	if !t.cmap.IsExist(key) {
 		return errors.New("Key not found")
 	}
-	t.cmap.Put(key, value)
+	t.Set(key, value, TTL)
 	return nil
 }
 
@@ -94,9 +105,9 @@ func (t *Storage) Get(key string) (interface{}, bool) {
 	if !ok {
 		return nil, false
 	}
-	tValue := value
+	tValue := value.(*cmapValue)
 
-	return tValue, true
+	return tValue.value, true
 }
 
 func (t *Storage) GetTTL(key string) (interface{}, bool) {
@@ -160,7 +171,12 @@ func (t *Storage) clearTTLExpiredRecords() {
 		if value, ok := t.ttl.Get(strI); ok {
 			keysToRemove := value.(*ttlValue).keys
 			for _, key := range keysToRemove {
-				t.Remove(key)
+				if v, ok := t.cmap.Get(key); ok {
+					tv := v.(*cmapValue)
+					if tv.ttl <= lastTime {
+						t.Remove(key)
+					}
+				}
 			}
 			t.ttl.Remove(strI)
 		}
