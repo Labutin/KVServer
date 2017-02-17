@@ -99,25 +99,33 @@ func (t *Storage) Remove(key string) error {
 	return t.cmap.Remove(key)
 }
 
-// Get returns value for given key
-func (t *Storage) Get(key string) (interface{}, bool) {
+// getRaw returns data
+func (t *Storage) getRaw(key string) (*cmapValue, bool) {
 	value, ok := t.cmap.Get(key)
 	if !ok {
 		return nil, false
 	}
 	tValue := value.(*cmapValue)
 
-	return tValue.value, true
+	return tValue, true
 }
 
-func (t *Storage) GetTTL(key string) (interface{}, bool) {
-	value, ok := t.ttl.Get(key)
+// Get returns value for given key
+func (t *Storage) Get(key string) (interface{}, bool) {
+	cmapValue, ok := t.getRaw(key)
 	if !ok {
 		return nil, false
 	}
-	tValue := value
+	return cmapValue.value, true
+}
 
-	return tValue, true
+// GetWithTTL returns value and TTL for given key
+func (t *Storage) GetWithTTL(key string) (interface{}, int64, bool) {
+	cmapValue, ok := t.getRaw(key)
+	if !ok {
+		return nil, int64(0), false
+	}
+	return cmapValue.value, cmapValue.ttl, true
 }
 
 // GetListElement returns i-th element from List value
@@ -156,11 +164,6 @@ func (t *Storage) GetDictElement(key, dictKey string) (interface{}, error) {
 // Keys returns all keys in map
 func (t *Storage) Keys() []string {
 	return t.cmap.Keys()
-}
-
-// TTLKeys returns all TTL keys
-func (t *Storage) TTLKeys() []string {
-	return t.ttl.Keys()
 }
 
 // clearTTLExpiredRecords removes old records from map
