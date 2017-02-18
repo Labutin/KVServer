@@ -81,8 +81,11 @@ func LoadFromDb(storage *kvstorage.Storage, connectionString, dbName, collection
 				item.Value = tmpValue
 			}
 		}
-		if currentTime < item.TTL {
-			nsec := time.Duration(time.Unix(item.TTL, 0).Sub(time.Now()).Nanoseconds())
+		if currentTime < item.TTL || item.TTL == 0 {
+			var nsec time.Duration = 0
+			if item.TTL > 0 {
+				nsec = time.Duration(time.Unix(item.TTL, 0).Sub(time.Now()).Nanoseconds())
+			}
 			storage.Set(item.Key, item.Value, time.Nanosecond*nsec)
 			log.Println(logs.MakeLogString(logs.DEBUG, GOROUTINE_ID, "Loaded key: "+item.Key, nil))
 		} else {
