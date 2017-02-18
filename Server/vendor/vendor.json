@@ -3,11 +3,11 @@
 	"ignore": "test",
 	"package": [
 		{
-			"checksumSHA1": "0htgtb0rBRu8FZbpfj5KLG+Oj/Q=",
+			"checksumSHA1": "Tu1g09vkphFYTMXKXwInoEFp0DI=",
 			"origin": "github.com/Labutin/KVServer/Server/vendor/github.com/Labutin/MemoryKeyValueStorage/kvstorage",
 			"path": "github.com/Labutin/MemoryKeyValueStorage/kvstorage",
-			"revision": "0dca596ff1c1eceaacfec7cffc643cda6496c1ca",
-			"revisionTime": "2017-02-17T13:58:44Z"
+			"revision": "037014cf1d472aaa81c6397f3ecb54a3b1876836",
+			"revisionTime": "2017-02-18T09:31:20Z"
 		},
 		{
 			"checksumSHA1": "sPljqvpl3Xcf4ejTdggwMUMtbH0=",

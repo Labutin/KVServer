@@ -137,7 +137,7 @@ func (t *Storage) GetListElement(key string, i int) (interface{}, error) {
 	if vl, ok := value.([]interface{}); !ok {
 		return nil, errors.New("Value not List")
 	} else {
-		if len(vl) <= i {
+		if len(vl) <= i || i < 0 {
 			return nil, errors.New("Out of bound")
 		}
 		return vl[i], nil
