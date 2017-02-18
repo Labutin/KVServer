@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/Labutin/KVServer/Server/logs"
+	"github.com/Labutin/MemoryKeyValueStorage/kvstorage"
 	"github.com/hashicorp/logutils"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"log"
@@ -15,8 +17,23 @@ import (
 )
 
 var (
-	server *httptest.Server
+	server      *httptest.Server
+	mockStorage *MockPersistStorage
 )
+
+type MockPersistStorage struct {
+	mock.Mock
+}
+
+func (t MockPersistStorage) SaveToDb(storage *kvstorage.Storage) error {
+	t.Called()
+	return nil
+}
+
+func (t MockPersistStorage) LoadFromDb(storage *kvstorage.Storage) error {
+	t.Called()
+	return nil
+}
 
 type testResponse struct {
 	responseCode int
@@ -295,6 +312,54 @@ func TestRemoveRecord(t *testing.T) {
 
 }
 
+func TestPersist(t *testing.T) {
+	postBodyt1 := map[string]interface{}{}
+	postBodyt1["key"] = "t1"
+	postBodyt1["value"] = "v1"
+	postBodyt1["ttl"] = 0
+
+	requests := []testRequest{
+		{
+			url:    server.URL + urlPath,
+			method: http.MethodPost,
+			body:   postBodyt1,
+			response: testResponse{
+				responseCode: http.StatusOK,
+				response: Resp{
+					Response: "",
+					Ok:       true,
+				},
+			},
+		},
+		{
+			url:    server.URL + urlPath + "/saveToDb",
+			method: http.MethodGet,
+			response: testResponse{
+				responseCode: http.StatusOK,
+				response: Resp{
+					Response: "",
+					Ok:       true,
+				},
+			},
+		},
+		{
+			url:    server.URL + urlPath + "/loadFromDb",
+			method: http.MethodGet,
+			response: testResponse{
+				responseCode: http.StatusOK,
+				response: Resp{
+					Response: "",
+					Ok:       true,
+				},
+			},
+		},
+	}
+	mockStorage.On("SaveToDb").Return(nil)
+	mockStorage.On("LoadFromDb").Return(nil)
+	testRequests(t, requests)
+
+}
+
 func TestAddRecord(t *testing.T) {
 	postBodyt1 := map[string]interface{}{}
 	postBodyt1["key"] = "t1"
@@ -390,17 +455,6 @@ func TestAddRecord(t *testing.T) {
 				},
 			},
 		},
-		{
-			url:    server.URL + urlPath + "/saveToDb",
-			method: http.MethodGet,
-			response: testResponse{
-				responseCode: http.StatusOK,
-				response: Resp{
-					Response: "",
-					Ok:       true,
-				},
-			},
-		},
 	}
 	testRequests(t, requests)
 	value, ok := storage.Get(postBodyt1["key"].(string))
@@ -472,7 +526,8 @@ func TestKeys(t *testing.T) {
 
 func TestMain(m *testing.M) {
 	InitStorage(10)
-	InitPersistentStorage("127.0.0.1:27017", "cmap", "data")
+	mockStorage = &MockPersistStorage{}
+	InitPersistentStorage(mockStorage)
 	server = httptest.NewServer(InitRouter())
 	os.Exit(m.Run())
 }

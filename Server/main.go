@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/Labutin/KVServer/Server/api"
+	"github.com/Labutin/KVServer/Server/api/persist"
 	"github.com/Labutin/KVServer/Server/logs"
 	"github.com/hashicorp/logutils"
 	"github.com/jessevdk/go-flags"
@@ -38,7 +39,7 @@ func main() {
 	}
 	log.SetOutput(filter)
 	api.InitStorage(opts.Chunks)
-	api.InitPersistentStorage(opts.MDBConnectionString, opts.MDBDbName, opts.MDBCollection)
+	api.InitPersistentStorage(persist.NewMongoStorage(opts.MDBConnectionString, opts.MDBDbName, opts.MDBCollection))
 	log.Println(logs.MakeLogString(logs.INFO, "main", "Ready to recieve requests", nil))
 	http.ListenAndServe(":8081", api.InitRouter())
 }

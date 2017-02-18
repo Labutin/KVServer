@@ -9,6 +9,17 @@ import (
 	"time"
 )
 
+type PersistStorage interface {
+	SaveToDb(*kvstorage.Storage) error
+	LoadFromDb(*kvstorage.Storage) error
+}
+
+type MongoStorage struct {
+	connectionString string
+	dbName           string
+	collection       string
+}
+
 const (
 	TYPE_GENERAL = "general"
 	TYPE_LIST    = "list"
@@ -16,13 +27,22 @@ const (
 	GOROUTINE_ID = "persist"
 )
 
-func SaveToDb(storage *kvstorage.Storage, connectionString, dbName, collection string) error {
-	session, err := getConnection(connectionString)
+func NewMongoStorage(connectionString, dbName, collection string) *MongoStorage {
+	mongoStorage := &MongoStorage{
+		connectionString: connectionString,
+		dbName:           dbName,
+		collection:       collection,
+	}
+	return mongoStorage
+}
+
+func (t MongoStorage) SaveToDb(storage *kvstorage.Storage) error {
+	session, err := t.getConnection(t.connectionString)
 	if err != nil {
 		return err
 	}
 	defer session.Close()
-	c := session.DB(dbName).C(collection)
+	c := session.DB(t.dbName).C(t.collection)
 	if err := c.DropCollection(); err != nil && err.Error() != "ns not found" {
 		return err
 	}
@@ -56,13 +76,13 @@ func SaveToDb(storage *kvstorage.Storage, connectionString, dbName, collection s
 	return nil
 }
 
-func LoadFromDb(storage *kvstorage.Storage, connectionString, dbName, collection string) error {
-	session, err := getConnection(connectionString)
+func (t MongoStorage) LoadFromDb(storage *kvstorage.Storage) error {
+	session, err := t.getConnection(t.connectionString)
 	if err != nil {
 		return err
 	}
 	defer session.Close()
-	c := session.DB(dbName).C(collection)
+	c := session.DB(t.dbName).C(t.collection)
 	iter := c.Find(bson.M{}).Iter()
 	item := struct {
 		Key   string
@@ -95,7 +115,7 @@ func LoadFromDb(storage *kvstorage.Storage, connectionString, dbName, collection
 	return nil
 }
 
-func getConnection(connectionString string) (*mgo.Session, error) {
+func (t MongoStorage) getConnection(connectionString string) (*mgo.Session, error) {
 	session, err := mgo.Dial(connectionString)
 	if err != nil {
 		return nil, err

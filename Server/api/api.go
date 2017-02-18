@@ -14,12 +14,10 @@ import (
 )
 
 var (
-	storage             *kvstorage.Storage
-	chuncks             uint32
-	urlPath             = "/v1/kvstorage"
-	mdbConnectionString string
-	mdbDbName           string
-	mdbCollection       string
+	storage        *kvstorage.Storage
+	chuncks        uint32
+	urlPath        = "/v1/kvstorage"
+	persistStorage persist.PersistStorage
 )
 
 const GOROUTINE_NAME = "main"
@@ -75,10 +73,8 @@ func InitStorage(totalChunks uint32) {
 }
 
 // InitPersistentStorage sets MongoDb params
-func InitPersistentStorage(connectionString, dbName, collection string) {
-	mdbConnectionString = connectionString
-	mdbDbName = dbName
-	mdbCollection = collection
+func InitPersistentStorage(pStorage persist.PersistStorage) {
+	persistStorage = pStorage
 }
 
 // addRecord puts record to storage
@@ -222,7 +218,7 @@ func getListRecord(w http.ResponseWriter, r *http.Request) {
 
 // saveToDb store all data to MongoDB
 func saveToDb(w http.ResponseWriter, r *http.Request) {
-	err := persist.SaveToDb(storage, mdbConnectionString, mdbDbName, mdbCollection)
+	err := persistStorage.SaveToDb(storage)
 	var res Resp
 	if err != nil {
 		render.Status(r, http.StatusInternalServerError)
@@ -240,7 +236,7 @@ func saveToDb(w http.ResponseWriter, r *http.Request) {
 func loadFromDb(w http.ResponseWriter, r *http.Request) {
 	storage.StopTTLProcessing()
 	InitStorage(chuncks)
-	err := persist.LoadFromDb(storage, mdbConnectionString, mdbDbName, mdbCollection)
+	err := persistStorage.LoadFromDb(storage)
 	var res Resp
 	if err != nil {
 		render.Status(r, http.StatusInternalServerError)
