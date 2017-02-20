@@ -10,9 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"testing"
 )
 
@@ -522,6 +524,62 @@ func TestKeys(t *testing.T) {
 	value, ok = storage.Get(postBodyt2["key"].(string))
 	require.True(t, ok)
 	require.Equal(t, postBodyt2["value"], value)
+}
+
+func BenchmarkTotal(b *testing.B) {
+	InitStorage(10)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		postBodyt1 := map[string]interface{}{}
+		postBodyt1["key"] = strconv.Itoa(rand.Intn(1000000))
+		postBodyt1["value"] = i
+		postBodyt1["ttl"] = 1000
+		requests := []testRequest{
+			{
+				url:    server.URL + urlPath,
+				method: http.MethodPost,
+				body:   postBodyt1,
+				response: testResponse{
+					responseCode: http.StatusOK,
+					response: Resp{
+						Response: "",
+						Ok:       true,
+					},
+				},
+			},
+		}
+		testRequests(nil, requests)
+	}
+}
+
+func BenchmarkParallel(b *testing.B) {
+	InitStorage(10)
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		i := 0
+		for pb.Next() {
+			postBodyt1 := map[string]interface{}{}
+			postBodyt1["key"] = strconv.Itoa(rand.Intn(1000000))
+			postBodyt1["value"] = i
+			i++
+			postBodyt1["ttl"] = 1000
+			requests := []testRequest{
+				{
+					url:    server.URL + urlPath,
+					method: http.MethodPost,
+					body:   postBodyt1,
+					response: testResponse{
+						responseCode: http.StatusOK,
+						response: Resp{
+							Response: "",
+							Ok:       true,
+						},
+					},
+				},
+			}
+			testRequests(nil, requests)
+		}
+	})
 }
 
 func TestMain(m *testing.M) {
