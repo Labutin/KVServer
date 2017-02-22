@@ -65,6 +65,7 @@ func (t MongoStorage) SaveToDb(storage *kvstorage.Storage) error {
 				if _, err := bulk.Run(); err != nil {
 					return err
 				}
+				bulk = c.Bulk()
 			}
 		}
 	}
